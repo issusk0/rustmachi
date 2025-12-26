@@ -65,7 +65,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
 
     // udp -> tun
     let handle_upd = thread::spawn(move ||{
-        let mut buffer = [0u8; 1400];
+        let mut buffer = [0u8; 1500];
         loop {
             if let Ok((n, src_addr)) = socket_clone.recv_from(&mut buffer) {
                 // update peer internet from
