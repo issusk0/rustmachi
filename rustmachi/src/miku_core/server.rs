@@ -76,7 +76,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
                 
                 // inject to tunel
                 let tun_guard = tun_1.lock().unwrap();
-                if let Ok(_) = tun_guard.send(&buffer[n..]) {
+                if let Ok(_) = tun_guard.send(&buffer[..n]) {
                     println!("<<< [UDP -> TUN] Recibidos {} bytes de {}", n, src_addr);
                 }
             } 
@@ -96,7 +96,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
             if n > 0 {
                 let peer_lock = remote_peer.lock().unwrap();
                 if let Some(target_addr) = *peer_lock {
-                    if let Ok(_) = socket_clone_2.send_to(&buffer[n..], target_addr) {
+                    if let Ok(_) = socket_clone_2.send_to(&buffer[..n], target_addr) {
                         println!(">>> [TUN -> UDP] Enviando {} bytes a {}", n, target_addr);
                     }
                 }
