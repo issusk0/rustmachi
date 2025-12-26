@@ -1,4 +1,4 @@
-name ="EXAMPLE"
-virtual_addr ="HERE PUT YOUR VIRTUAL ADDR"
-real_addr ="192.168.1.1"
+name ="YOUR VIRTUAL ADDR"
+virtual_addr ="10.0.0.1"
+real_addr =""
 port = 8080

@@ -67,11 +67,11 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
             let (n, s) = socket_clone.recv_from(&mut buffer).expect("not able to recv all data");
             let data = &buffer[0..n];
             let tun_guard = udp_tun.lock().unwrap();
-            tun_guard.send(data);
+            tun_guard.send(data).expect("Error when sending data to tun");
             
         }
 
-    });
+    }).join().expect("UDP socket ended");
     thread::spawn (move || {
         //aca se inicia el tun
         let mut buffer = [0u8; 1400];
@@ -84,7 +84,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
             socket_clone_2.send_to(&buffer[0..n], target.real_addr.as_str()).ok();
         }
         
-    });
+    }).join().expect("Tunnel ended");
 
 }
 
