@@ -2,3 +2,5 @@
 .vscode
 target
 .idea
+config.toml
+tun.toml
