@@ -98,12 +98,14 @@ pub fn create_udp_listener(config: Server) -> UdpSocket{
 
 //create tunel to recv-send
 pub fn create_tun_interface()-> SyncDevice{
+    let config = load_config();
+    let config_virtual_addr: Ipv4Addr = config.virtual_addr.parse().expect("Couldn't parse virtual address");
     let target = load_target();
-    let target_virtual_addr = target.virtual_addr.as_str();
+    let target_virtual_addr: Ipv4Addr = target.virtual_addr.parse().expect("Couldn't parse target virtual address");
     let dev = DeviceBuilder::new()
         .name("rustmachi")
             //[IPV4, Netmask, IPVDIRECTION]
-        .ipv4("10.0.0.1", 24,Some(target_virtual_addr))
+        .ipv4(config_virtual_addr, 24, Some(target_virtual_addr))
         .mtu(1400)
         .build_sync()
         .unwrap();
