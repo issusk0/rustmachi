@@ -67,6 +67,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
             let (n, s) = socket_clone.recv_from(&mut buffer).expect("not able to recv all data");
             let data = &buffer[0..n];
             let tun_guard = udp_tun.lock().unwrap();
+            println!("Sending data  through tunnel...");
             tun_guard.send(data).expect("Error when sending data to tun");
             
         }
@@ -75,13 +76,14 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
     thread::spawn (move || {
         //aca se inicia el tun
         let mut buffer = [0u8; 1400];
+        let target_addr:Ipv4Addr = target.real_addr.parse().expect("not able to parse ipv4");
         loop {
             let n = {
                 let tun_guard = tun_2.lock().unwrap(); // Use the cloned Arc
                 tun_guard.recv(&mut buffer).expect("No data found")
             };
 
-            socket_clone_2.send_to(&buffer[0..n], target.real_addr.as_str()).ok();
+            socket_clone_2.send_to(&buffer[0..n], (target_addr, target.get_target_port())).ok();
         }
         
     }).join().expect("Tunnel ended");
