@@ -52,55 +52,60 @@ impl Server{
         &self.virtual_addr
     }
 }
-
 pub fn server(socket: UdpSocket, tunnel: SyncDevice){
     let socket_clone = socket.try_clone().expect("Couldnt clone the socket");
-    let socket_clone_2=socket.try_clone().expect("Failed to clone");
+    let socket_clone_2 = socket.try_clone().expect("Failed to clone");
+    
     let tun = Arc::new(Mutex::new(tunnel));
     let tun_1 = Arc::clone(&tun);
     let tun_2 = Arc::clone(&tun);
-    let target = Arc::new(load_target());
 
     let remote_peer = Arc::new(Mutex::new(None::<std::net::SocketAddr>));
     let remote_peer_clone = Arc::clone(&remote_peer);
+
+    // udp -> tun
     let handle_upd = thread::spawn(move ||{
-
-        let mut buffer = [0u8;1400];
-
-        loop {
-            if let Ok((n, src_addr)) = socket_clone.recv_from(&mut buffer) {
-                println!("Enviando data desde el socket upd a tunel...");
-                let mut peer_lock = remote_peer_clone.lock().unwrap();
-                *peer_lock = Some(src_addr);
-                
-                let tun_guard = tun_1.lock().unwrap();
-                let _ = tun_guard.send(&buffer[..n]);
-            } 
-        }
-
-    });
-    let handle_tun = thread::spawn (move || {
-        //aca se inicia el tun
         let mut buffer = [0u8; 1400];
         loop {
+            if let Ok((n, src_addr)) = socket_clone.recv_from(&mut buffer) {
+                // update peer internet from
+                {
+                    let mut peer_lock = remote_peer_clone.lock().unwrap();
+                    *peer_lock = Some(src_addr);
+                }
+                
+                // inject to tunel
+                let tun_guard = tun_1.lock().unwrap();
+                if let Ok(_) = tun_guard.send(&buffer[..n]) {
+                    println!("<<< [UDP -> TUN] Recibidos {} bytes de {}", n, src_addr);
+                }
+            } 
+        }
+    });
+
+    // tun -> internet
+    let handle_tun = thread::spawn (move || {
+        let mut buffer = [0u8; 1500];
+        loop {
+            // read data from from tun
             let n = {
-                let tun_guard = tun_2.lock().unwrap(); // Use the cloned Arc
-                tun_guard.recv(&mut buffer).expect("No data found")
+                let tun_guard = tun_2.lock().unwrap();
+                tun_guard.recv(&mut buffer).unwrap_or(0)
             };
 
             if n > 0 {
                 let peer_lock = remote_peer.lock().unwrap();
-                println!("Recibiendo data desde el socket udp y enviando data a tunel...");
                 if let Some(target_addr) = *peer_lock {
-                    let _ = socket_clone_2.send_to(&buffer[..n], target_addr);
+                    if let Ok(_) = socket_clone_2.send_to(&buffer[..n], target_addr) {
+                        println!(">>> [TUN -> UDP] Enviando {} bytes a {}", n, target_addr);
+                    }
                 }
             }
         }
-        
     });
-    handle_upd.join().expect("Error for udp thread");
-    handle_tun.join().expect("Error for tunnel thread");
 
+    let _ = handle_upd.join();
+    let _ = handle_tun.join();
 }
 
 //create tunel to send-recv data
