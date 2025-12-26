@@ -1,4 +1,4 @@
 name ="EXAMPLE OF TARGET"
 real_addr ="HERE IS THE REAL ADDR"
-addr = "10.0.0.2"
+virtual_addr = "10.0.0.2"
 port = 8080

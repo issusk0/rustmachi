@@ -1,0 +1,4 @@
+name ="EXAMPLE"
+virtual_addr ="HERE PUT YOUR VIRTUAL ADDR"
+real_addr ="192.168.1.1"
+port = 8080

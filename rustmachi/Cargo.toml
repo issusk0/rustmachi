@@ -1,0 +1,9 @@
+[package]
+name = "rustmachi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tun-rs = "2.7.6"
+toml = "0.9"
+serde = { version = "1.0", features = ["derive"] }
