@@ -60,20 +60,20 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
     let tun_1 = Arc::clone(&tun);
     let tun_2 = Arc::clone(&tun);
     let target = Arc::new(load_target());
-    thread::spawn(move ||{
+    let handle_upd = thread::spawn(move ||{
         let udp_tun = Arc::clone(&tun_1);
         let mut buffer = [0u8;1400];
         loop {
-            let (n, s) = socket_clone.recv_from(&mut buffer).expect("not able to recv all data");
+            let (n, _) = socket_clone.recv_from(&mut buffer).expect("not able to recv all data");
             let data = &buffer[0..n];
             let tun_guard = udp_tun.lock().unwrap();
             println!("Sending data  through tunnel...");
-            tun_guard.send(data).expect("Error when sending data to tun");
+            tun_guard.send(data).ok();
             
         }
 
-    }).join().expect("UDP socket ended");
-    thread::spawn (move || {
+    });
+    let handle_tun = thread::spawn (move || {
         //aca se inicia el tun
         let mut buffer = [0u8; 1400];
         let target_addr:Ipv4Addr = target.real_addr.parse().expect("not able to parse ipv4");
@@ -86,7 +86,9 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
             socket_clone_2.send_to(&buffer[0..n], (target_addr, target.get_target_port())).ok();
         }
         
-    }).join().expect("Tunnel ended");
+    });
+    handle_upd.join().expect("Error for udp thread");
+    handle_tun.join().expect("Error for tunnel thread");
 
 }
 
