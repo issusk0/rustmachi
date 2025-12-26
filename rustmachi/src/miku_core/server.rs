@@ -69,7 +69,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
 
         loop {
             if let Ok((n, src_addr)) = socket_clone.recv_from(&mut buffer) {
-                
+                println!("Enviando data desde el socket upd a tunel...");
                 let mut peer_lock = remote_peer_clone.lock().unwrap();
                 *peer_lock = Some(src_addr);
                 
@@ -90,7 +90,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
 
             if n > 0 {
                 let peer_lock = remote_peer.lock().unwrap();
-                // Si ya sabemos quién nos habló, le mandamos la respuesta a ESA dirección
+                println!("Recibiendo data desde el socket udp y enviando data a tunel...");
                 if let Some(target_addr) = *peer_lock {
                     let _ = socket_clone_2.send_to(&buffer[..n], target_addr);
                 }
