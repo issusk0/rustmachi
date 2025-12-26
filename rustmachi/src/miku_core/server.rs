@@ -60,30 +60,41 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
     let tun_1 = Arc::clone(&tun);
     let tun_2 = Arc::clone(&tun);
     let target = Arc::new(load_target());
+
+    let remote_peer = Arc::new(Mutex::new(None::<std::net::SocketAddr>));
+    let remote_peer_clone = Arc::clone(&remote_peer);
     let handle_upd = thread::spawn(move ||{
-        let udp_tun = Arc::clone(&tun_1);
+
         let mut buffer = [0u8;1400];
+
         loop {
-            let (n, _) = socket_clone.recv_from(&mut buffer).expect("not able to recv all data");
-            let data = &buffer[0..n];
-            let tun_guard = udp_tun.lock().unwrap();
-            println!("Sending data  through tunnel...");
-            tun_guard.send(data).ok();
-            
+            if let Ok((n, src_addr)) = socket_clone.recv_from(&mut buffer) {
+                
+                let mut peer_lock = remote_peer_clone.lock().unwrap();
+                *peer_lock = Some(src_addr);
+                
+                let tun_guard = tun_1.lock().unwrap();
+                let _ = tun_guard.send(&buffer[..n]);
+            } 
         }
 
     });
     let handle_tun = thread::spawn (move || {
         //aca se inicia el tun
         let mut buffer = [0u8; 1400];
-        let target_addr:Ipv4Addr = target.real_addr.parse().expect("not able to parse ipv4");
         loop {
             let n = {
                 let tun_guard = tun_2.lock().unwrap(); // Use the cloned Arc
                 tun_guard.recv(&mut buffer).expect("No data found")
             };
 
-            socket_clone_2.send_to(&buffer[0..n], (target_addr, target.get_target_port())).ok();
+            if n > 0 {
+                let peer_lock = remote_peer.lock().unwrap();
+                // Si ya sabemos quién nos habló, le mandamos la respuesta a ESA dirección
+                if let Some(target_addr) = *peer_lock {
+                    let _ = socket_clone_2.send_to(&buffer[..n], target_addr);
+                }
+            }
         }
         
     });

@@ -1,4 +1,4 @@
-name ="TARGET VIRTUAL ADDR"
+name ="TARGET DATA"
 real_addr ="3.236.73.40"
 virtual_addr = "10.0.0.2"
 port = 8000
