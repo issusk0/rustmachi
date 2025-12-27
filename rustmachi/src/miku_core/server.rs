@@ -9,7 +9,7 @@ use std::thread;
 
 
 const MAGIC: &[u8; 9] = b"RUSTMACHI";
-const MAGIC_LEN: usize = 7;
+const MAGIC_LEN: usize = MAGIC.len();
 #[derive(Deserialize)]
 pub struct Target{
     pub real_addr: String,
@@ -72,8 +72,10 @@ pub fn server(initial_peer: SocketAddrV6, socket: UdpSocket, tunnel: SyncDevice)
         *peer_lock = Some(initial_peer);
 
     }
-
-    socket.send_to(b"Rustmachi initial handsake", initial_peer).ok();
+    let mut hs = Vec::new();
+        hs.extend_from_slice(MAGIC);
+        hs.extend_from_slice(b"HELLO");
+    socket.send_to(&hs, initial_peer).ok();
     // udp -> tun
     let handle_upd = thread::spawn(move ||{
         let mut buffer = [0u8; 1300];
