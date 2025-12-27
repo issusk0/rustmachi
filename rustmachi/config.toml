@@ -1,4 +1,4 @@
 name ="YOUR DATA"
-virtual_addr ="10.0.0.1"
-real_addr ="[2800:300:6a52:bce0]"
+virtual_addr ="10.0.0.2"
+real_addr ="2800:300:6a52:bce0::5"
 port = 8000

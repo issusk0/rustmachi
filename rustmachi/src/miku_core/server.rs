@@ -1,10 +1,8 @@
 //This is for server TUN in the Peer to Peer VPN
 use serde::Deserialize;
 use std::fs;
-use std::hash::Hash;
-use std::mem::ManuallyDrop;
 use tun_rs::{DeviceBuilder, SyncDevice};
-use std::net::{SocketAddrV6,Ipv6Addr, UdpSocket, Ipv4Addr};
+use std::net::{SocketAddrV6,Ipv6Addr, UdpSocket, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -14,7 +12,7 @@ const MAGIC: &[u8; 9] = b"RUSTMACHI";
 const MAGIC_LEN: usize = 7;
 #[derive(Deserialize)]
 pub struct Target{
-    real_addr: String,
+    pub real_addr: String,
     virtual_addr: String,
     port: u16,
     name: String,
@@ -59,16 +57,23 @@ impl Server{
         &self.virtual_addr
     }
 }
-pub fn server(socket: UdpSocket, tunnel: SyncDevice){
+pub fn server(initial_peer: SocketAddrV6, socket: UdpSocket, tunnel: SyncDevice){
     let socket_clone = socket.try_clone().expect("Couldnt clone the socket");
     let socket_clone_2 = socket.try_clone().expect("Failed to clone");
     
     let tun = Arc::new(Mutex::new(tunnel));
     let tun_1 = Arc::clone(&tun);
     let tun_2 = Arc::clone(&tun);
+    let remote_initial_peer = Arc::new(Mutex::new(None::<std::net::SocketAddrV6>));
     let remote_peer = Arc::new(Mutex::new(None::<std::net::SocketAddr>));
     let remote_peer_clone = Arc::clone(&remote_peer);
+    {
+        let mut peer_lock = remote_initial_peer.lock().unwrap();
+        *peer_lock = Some(initial_peer);
 
+    }
+
+    socket.send_to(b"Rustmachi initial handsake", initial_peer).ok();
     // udp -> tun
     let handle_upd = thread::spawn(move ||{
         let mut buffer = [0u8; 1300];
