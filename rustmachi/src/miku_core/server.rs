@@ -148,7 +148,7 @@ pub fn create_tun_interface()-> SyncDevice{
     let dev = DeviceBuilder::new()
         .name("rustmachi")
             //[IPV4, Netmask, IPVDIRECTION]
-        .ipv4(config_virtual_addr, 24, Some(target_virtual_addr))
+        .ipv4(config_virtual_addr, 32, Some(target_virtual_addr))
         .mtu(1300)
         .build_sync()
         .unwrap();
