@@ -1,10 +1,17 @@
 //This is for server TUN in the Peer to Peer VPN
 use serde::Deserialize;
 use std::fs;
+use std::hash::Hash;
+use std::mem::ManuallyDrop;
 use tun_rs::{DeviceBuilder, SyncDevice};
-use std::net::{SocketAddrV4,Ipv4Addr, UdpSocket};
+use std::net::{SocketAddrV6,Ipv6Addr, UdpSocket, Ipv4Addr};
 use std::sync::{Arc, Mutex};
 use std::thread;
+
+
+
+const MAGIC: &[u8; 9] = b"RUSTMACHI";
+const MAGIC_LEN: usize = 7;
 #[derive(Deserialize)]
 pub struct Target{
     real_addr: String,
@@ -59,16 +66,20 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
     let tun = Arc::new(Mutex::new(tunnel));
     let tun_1 = Arc::clone(&tun);
     let tun_2 = Arc::clone(&tun);
-
     let remote_peer = Arc::new(Mutex::new(None::<std::net::SocketAddr>));
     let remote_peer_clone = Arc::clone(&remote_peer);
 
     // udp -> tun
     let handle_upd = thread::spawn(move ||{
-        let mut buffer = [0u8; 1500];
+        let mut buffer = [0u8; 1300];
         loop {
             if let Ok((n, src_addr)) = socket_clone.recv_from(&mut buffer) {
                 // update peer internet from
+
+                if n < MAGIC_LEN || &buffer[..MAGIC_LEN] != MAGIC {
+                    continue;
+                }
+                let payload = &buffer[MAGIC_LEN..n];
                 {
                     let mut peer_lock = remote_peer_clone.lock().unwrap();
                     *peer_lock = Some(src_addr);
@@ -76,7 +87,7 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
                 
                 // inject to tunel
                 let tun_guard = tun_1.lock().unwrap();
-                if let Ok(_) = tun_guard.send(&buffer[..n]) {
+                if let Ok(_) = tun_guard.send(payload) {
                     println!("<<< [UDP -> TUN] Recibidos {} bytes de {}", n, src_addr);
                 }
             } 
@@ -85,8 +96,10 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
 
     // tun -> internet
     let handle_tun = thread::spawn (move || {
-        let mut buffer = [0u8; 1500];
+        let mut buffer = [0u8; 1300];
         loop {
+
+            
             // read data from from tun
             let n = {
                 let tun_guard = tun_2.lock().unwrap();
@@ -96,7 +109,10 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
             if n > 0 {
                 let peer_lock = remote_peer.lock().unwrap();
                 if let Some(target_addr) = *peer_lock {
-                    if let Ok(_) = socket_clone_2.send_to(&buffer[..n], target_addr) {
+                    let mut out = Vec::with_capacity(MAGIC_LEN + n);
+                    out.extend_from_slice(MAGIC);
+                    out.extend_from_slice(&buffer[..n]);
+                    if let Ok(_) = socket_clone_2.send_to(&out, target_addr) {
                         println!(">>> [TUN -> UDP] Enviando {} bytes a {}", n, target_addr);
                     }
                 }
@@ -110,8 +126,8 @@ pub fn server(socket: UdpSocket, tunnel: SyncDevice){
 
 //create tunel to send-recv data
 pub fn create_udp_listener(config: Server) -> UdpSocket{
-    let addr: Ipv4Addr = config.real_addr.parse().expect("Couldnt parse addr");
-    let socket_udp = SocketAddrV4::new(addr, config.port);
+    let addr: Ipv6Addr = config.real_addr.parse().expect("Couldnt parse addr");
+    let socket_udp = SocketAddrV6::new(addr, config.port,0,0);
     let socket = UdpSocket::bind(socket_udp).expect("Couldn't bind the socket!");
     socket
 }
@@ -126,7 +142,7 @@ pub fn create_tun_interface()-> SyncDevice{
         .name("rustmachi")
             //[IPV4, Netmask, IPVDIRECTION]
         .ipv4(config_virtual_addr, 24, Some(target_virtual_addr))
-        .mtu(1500)
+        .mtu(1300)
         .build_sync()
         .unwrap();
     dev
